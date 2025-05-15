@@ -1,4 +1,4 @@
-from sqlalchemy import select, Sequence, update, delete
+from sqlalchemy import select, Sequence, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -14,18 +14,60 @@ async def get_quiz_by_id(id: int, db: AsyncSession) -> Quiz | None:
         quiz = await session.execute(query)
         return quiz.scalars().unique().one_or_none()
 
-async def get_all_quizzes(db: AsyncSession) -> Sequence[Quiz]:
-    query = select(Quiz).options(joinedload(Quiz.questions).joinedload(Question.answers), joinedload(Quiz.category), joinedload(Quiz.user))
+async def get_all_quizzes(page: int, size: int, db: AsyncSession):
+    skip = (page-1)*size
+    total_query = select(func.count()).select_from(Quiz)
+    query = select(Quiz).offset(skip).limit(size).options(joinedload(Quiz.questions).joinedload(Question.answers), joinedload(Quiz.category), joinedload(Quiz.user))
     async with db as session:
         quizzes = await session.execute(query)
-        return quizzes.scalars().unique().all()
+        total_queries = await session.execute(total_query)
+        total = total_queries.scalars().one()
+        quiz = quizzes.scalars().all()
+        return {
+            "total": total,
+            "page": page,
+            "size": size,
+            "items": quiz,
+            "pages": (total+size-1)//size
+        }
 
-async def get_all_approved_quizzes(db: AsyncSession) -> Sequence[Quiz]:
-    query = (select(Quiz).options(joinedload(Quiz.questions).joinedload(Question.answers), joinedload(Quiz.category), joinedload(Quiz.user))
+async def get_all_approved_quizzes(page: int, size: int, db: AsyncSession):
+    skip = (page-1)*size
+    total_query = select(func.count()).select_from(Quiz)
+    query = (select(Quiz).offset(skip).limit(size)
+             .options(joinedload(Quiz.questions).joinedload(Question.answers), joinedload(Quiz.category), joinedload(Quiz.user))
              .where(Quiz.approved == True))
     async with db as session:
         quizzes = await session.execute(query)
-        return quizzes.scalars().unique().all()
+        total_queries = await session.execute(total_query)
+        total = total_queries.scalars().one()
+        quiz = quizzes.scalars().all()
+        return {
+            "total": total,
+            "page": page,
+            "size": size,
+            "items": quiz,
+            "pages": (total+size-1)//size
+        }
+
+async def get_unapproved_quizzes(page: int, size: int, db: AsyncSession):
+    skip = (page-1)*size
+    total_query = select(func.count()).select_from(Quiz)
+    query = (select(Quiz).offset(skip).limit(size)
+             .options(joinedload(Quiz.questions).joinedload(Question.answers), joinedload(Quiz.category), joinedload(Quiz.user))
+             .where(Quiz.approved == False))
+    async with db as session:
+        quizzes = await session.execute(query)
+        total_queries = await session.execute(total_query)
+        total = total_queries.scalars().one()
+        quiz = quizzes.scalars().all()
+        return {
+            "total": total,
+            "page": page,
+            "size": size,
+            "items": quiz,
+            "pages": (total+size-1)//size
+        }
 
 async def get_all_user_quizzes(id: int, db: AsyncSession) -> Sequence[Quiz]:
     query = (select(Quiz).
@@ -35,33 +77,77 @@ async def get_all_user_quizzes(id: int, db: AsyncSession) -> Sequence[Quiz]:
         quizzes = await session.execute(query)
         return quizzes.scalars().unique().all()
 
-async def search_quizzes(query: str, db: AsyncSession) -> Sequence[Quiz]:
-    query = (select(Quiz).options(joinedload(Quiz.questions).joinedload(Question.answers), joinedload(Quiz.category), joinedload(Quiz.user))
+async def search_quizzes(query: str, page: int, size: int, db: AsyncSession):
+    skip = (page-1)*size
+    total_query = select(func.count()).select_from(Quiz)
+    query = (select(Quiz).offset(skip).limit(size).options(joinedload(Quiz.questions).joinedload(Question.answers), joinedload(Quiz.category), joinedload(Quiz.user))
              .where(Quiz.title.like(f'%{query}%')))
     async with db as session:
         quizzes = await session.execute(query)
-        return quizzes.scalars().unique().all()
+        total_queries = await session.execute(total_query)
+        total = total_queries.scalars().one()
+        quiz = quizzes.scalars().all()
+        return {
+            "total": total,
+            "page": page,
+            "size": size,
+            "items": quiz,
+            "pages": (total+size-1)//size
+        }
 
-async def search_approved_quizzes(query: str, db: AsyncSession) -> Sequence[Quiz]:
-    query = (select(Quiz).options(joinedload(Quiz.questions).joinedload(Question.answers), joinedload(Quiz.category), joinedload(Quiz.user))
+async def search_approved_quizzes(query: str, page: int, size: int, db: AsyncSession):
+    skip = (page-1)*size
+    total_query = select(func.count()).select_from(Quiz)
+    query = (select(Quiz).offset(skip).limit(size).options(joinedload(Quiz.questions).joinedload(Question.answers), joinedload(Quiz.category), joinedload(Quiz.user))
              .where((Quiz.approved == True) & Quiz.title.like(f'%{query}%')))
     async with db as session:
         quizzes = await session.execute(query)
-        return quizzes.scalars().unique().all()
+        total_queries = await session.execute(total_query)
+        total = total_queries.scalars().one()
+        quiz = quizzes.scalars().all()
+        return {
+            "total": total,
+            "page": page,
+            "size": size,
+            "items": quiz,
+            "pages": (total+size-1)//size
+        }
 
-async def get_quizzes_by_category(id: int, db: AsyncSession) -> Sequence[Quiz]:
-    query = (select(Quiz).options(joinedload(Quiz.questions).joinedload(Question.answers), joinedload(Quiz.category), joinedload(Quiz.user))
+async def get_quizzes_by_category(id: int, page: int, size: int, db: AsyncSession):
+    skip = (page-1)*size
+    total_query = select(func.count()).select_from(Quiz)
+    query = (select(Quiz).offset(skip).limit(size).options(joinedload(Quiz.questions).joinedload(Question.answers), joinedload(Quiz.category), joinedload(Quiz.user))
              .where(Quiz.category_id == id))
     async with db as session:
         quizzes = await session.execute(query)
-        return quizzes.scalars().unique().all()
+        total_queries = await session.execute(total_query)
+        total = total_queries.scalars().one()
+        quiz = quizzes.scalars().all()
+        return {
+            "total": total,
+            "page": page,
+            "size": size,
+            "items": quiz,
+            "pages": (total+size-1)//size
+        }
 
-async def get_approved_quizzes_by_category(id: int, db: AsyncSession) -> Sequence[Quiz]:
-    query = (select(Quiz).options(joinedload(Quiz.questions).joinedload(Question.answers), joinedload(Quiz.category), joinedload(Quiz.user))
+async def get_approved_quizzes_by_category(id: int, page: int, size: int, db: AsyncSession):
+    skip = (page-1)*size
+    total_query = select(func.count()).select_from(Quiz)
+    query = (select(Quiz).offset(skip).limit(size).options(joinedload(Quiz.questions).joinedload(Question.answers), joinedload(Quiz.category), joinedload(Quiz.user))
              .where((Quiz.category_id == id) & (Quiz.approved == True)))
     async with db as session:
         quizzes = await session.execute(query)
-        return quizzes.scalars().unique().all()
+        total_queries = await session.execute(total_query)
+        total = total_queries.scalars().one()
+        quiz = quizzes.scalars().all()
+        return {
+            "total": total,
+            "page": page,
+            "size": size,
+            "items": quiz,
+            "pages": (total+size-1)//size
+        }
 
 async def get_all_user_approved_quizzes(id: int, db: AsyncSession) -> Sequence[Quiz]:
     query = (select(Quiz).options(joinedload(Quiz.questions).joinedload(Question.answers), joinedload(Quiz.category), joinedload(Quiz.user))

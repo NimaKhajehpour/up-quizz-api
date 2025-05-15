@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from starlette import status
@@ -19,14 +19,15 @@ router = APIRouter(
     tags=["quiz"],
 )
 
-@router.get("", response_model=list[quiz_response.Quiz])
-async def get_all_quizzes(db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):
+@router.get("")
+async def get_all_quizzes(db: Annotated[AsyncSession, Depends(get_db)], page: int = Query(1, ge=1),
+                          size: int = Query(10, ge=1, le=100), token: str = Depends(oauth2_scheme)):
     user = await decode_access_token(token, db)
     quizzes = None
     if user.role == "admin":
-        quizzes = await quiz_operations.get_all_quizzes(db)
+        quizzes = await quiz_operations.get_all_quizzes(page, size, db)
     else:
-        quizzes = await quiz_operations.get_all_approved_quizzes(db)
+        quizzes = await quiz_operations.get_all_approved_quizzes(page, size, db)
     return quizzes
 
 @router.get("/user", response_model=list[quiz_response.Quiz])
@@ -35,26 +36,36 @@ async def get_own_quizzes(db: Annotated[AsyncSession, Depends(get_db)], token: s
     quizzes = await quiz_operations.get_all_user_quizzes(user.id, db)
     return quizzes
 
-@router.get("/search", response_model=list[quiz_response.Quiz])
-async def search_quizzes(query: str, db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):
+@router.get("/search")
+async def search_quizzes(query: str, db: Annotated[AsyncSession, Depends(get_db)], page: int = Query(1, ge=1),
+                         size: int = Query(10, ge=1, le=100), token: str = Depends(oauth2_scheme)):
     user = await decode_access_token(token, db)
     quizzes = None
     if user.role == "admin":
-        quizzes = await quiz_operations.search_quizzes(query, db)
+        quizzes = await quiz_operations.search_quizzes(query, page, size, db)
     else:
-        quizzes = await quiz_operations.search_approved_quizzes(query, db)
+        quizzes = await quiz_operations.search_approved_quizzes(query, page, size, db)
     return quizzes
 
-@router.get("/filter", response_model=list[quiz_response.Quiz])
-async def filter_quizzes(category_id: int, db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):
+@router.get("/unapproved")
+async def get_unapproved_quizzes(db: Annotated[AsyncSession, Depends(get_db)], page: int = Query(1, ge=1),
+                                 size: int = Query(10, ge=1, le=100), token: str = Depends(oauth2_scheme)):
+    user = await decode_access_token(token, db)
+    if user.role != "admin":
+        raise HTTPException(status_code = 403, detail="Not authorized")
+    return await quiz_operations.get_unapproved_quizzes(page, size, db)
+
+@router.get("/filter")
+async def filter_quizzes(category_id: int, db: Annotated[AsyncSession, Depends(get_db)], page: int = Query(1, ge=1),
+                         size: int = Query(10, ge=1, le=100), token: str = Depends(oauth2_scheme)):
     user = await decode_access_token(token, db)
     category = await category_operations.get_category_by_id(category_id, db)
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
     if user.role == "admin":
-        return await quiz_operations.get_quizzes_by_category(category_id, db)
+        return await quiz_operations.get_quizzes_by_category(category_id, page, size, db)
     else:
-        return await quiz_operations.get_approved_quizzes_by_category(category_id, db)
+        return await quiz_operations.get_approved_quizzes_by_category(category_id, page, size, db)
 
 @router.get("/user/{user_id}", response_model=list[quiz_response.Quiz])
 async def get_user_quizzes(user_id: int, db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):

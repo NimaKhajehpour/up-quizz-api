@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.openapi.utils import status_code_ranges
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -18,25 +18,35 @@ router = APIRouter(
     tags=["category"]
 )
 
-@router.get("", response_model=list[category_response.Category])
-async def get_categories(db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):
+@router.get("")
+async def get_categories(db: Annotated[AsyncSession, Depends(get_db)], page: int = Query(1, ge=1),
+                         size: int = Query(10, ge=1, le=100), token: str = Depends(oauth2_scheme)):
     user = await decode_access_token(token, db)
     categories = None
     if user.role != "admin":
-        categories = await category_operations.get_approved_categories(db)
+        categories = await category_operations.get_approved_categories(page, size, db)
     else:
-        categories = await category_operations.get_all_categories(db)
+        categories = await category_operations.get_all_categories(page, size, db)
     return categories
 
-@router.get("/search", response_model=list[category_response.Category])
-async def search_categories(query: str, db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):
+@router.get("/search")
+async def search_categories(query: str, db: Annotated[AsyncSession, Depends(get_db)], page: int = Query(1, ge=1),
+                            size: int = Query(10, ge=1, le=100), token: str = Depends(oauth2_scheme)):
     user = await decode_access_token(token, db)
     categories = None
     if user.role != "admin":
-        categories = await category_operations.search_approved_categories(query, db)
+        categories = await category_operations.search_approved_categories(query, page, size, db)
     else:
-        categories = await category_operations.search_all_categories(query, db)
+        categories = await category_operations.search_all_categories(query, page, size, db)
     return categories
+
+@router.get("/unapproved")
+async def get_unapproved_categories(db: Annotated[AsyncSession, Depends(get_db)], page: int = Query(1, ge=1),
+                                    size: int = Query(10, ge=1, le=100), token: str = Depends(oauth2_scheme)):
+    user = await decode_access_token(token, db)
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return await category_operations.get_unapproved_categories(page, size, db)
 
 @router.get("/{id}", response_model=category_response.Category)
 async def get_category(id: int, db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):

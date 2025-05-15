@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -22,10 +22,11 @@ async def get_user_profile(db: Annotated[AsyncSession, Depends(get_db)], token: 
     user = await decode_access_token(token, db)
     return user
 
-@router.get("/users", response_model=list[UserProfile])
-async def get_all_users(db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):
+@router.get("/users")
+async def get_all_users(db: Annotated[AsyncSession, Depends(get_db)], page: int = Query(1, ge=1),
+                        size: int = Query(10, ge=1, le=100), token: str = Depends(oauth2_scheme)):
     user = await decode_access_token(token, db)
-    users = await user_operations.get_all_users(db)
+    users = await user_operations.get_all_users(page, size, db)
     return users
 
 @router.get("/users/{user_id}", response_model=UserProfile)
