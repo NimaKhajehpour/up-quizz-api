@@ -18,13 +18,13 @@ router = APIRouter(
     tags=["taken_quiz"],
 )
 
-@router.get("", response_model=list[taken_quiz_response.TakenQuiz])
+@router.get("")
 async def get_taken_quizzes(db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):
     user = await decode_access_token(token, db)
     taken_quizzes = await taken_quiz_operations.get_taken_quizzes(user.id, db)
     return taken_quizzes
 
-@router.get("/user/{id}", response_model=list[taken_quiz_response.TakenQuiz])
+@router.get("/user/{id}")
 async def get_user_taken_quiz(id: int, db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):
     user = await decode_access_token(token, db)
     db_user = await user_operations.get_user_by_id(id, db)
