@@ -30,7 +30,7 @@ async def get_all_quizzes(db: Annotated[AsyncSession, Depends(get_db)], page: in
         quizzes = await quiz_operations.get_all_approved_quizzes(page, size, db)
     return quizzes
 
-@router.get("/user", response_model=list[quiz_response.Quiz])
+@router.get("/user")
 async def get_own_quizzes(db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):
     user = await decode_access_token(token, db)
     quizzes = await quiz_operations.get_all_user_quizzes(user.id, db)
@@ -67,7 +67,7 @@ async def filter_quizzes(category_id: int, db: Annotated[AsyncSession, Depends(g
     else:
         return await quiz_operations.get_approved_quizzes_by_category(category_id, page, size, db)
 
-@router.get("/user/{user_id}", response_model=list[quiz_response.Quiz])
+@router.get("/user/{user_id}")
 async def get_user_quizzes(user_id: int, db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):
     user = await decode_access_token(token, db)
     query_user = await user_operations.get_user_by_id(user_id, db)
@@ -78,7 +78,7 @@ async def get_user_quizzes(user_id: int, db: Annotated[AsyncSession, Depends(get
     else:
         return await quiz_operations.get_all_user_approved_quizzes(user_id, db)
 
-@router.get("/{id}", response_model=quiz_response.Quiz)
+@router.get("/{id}")
 async def get_quiz(id: int, db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):
     user = await decode_access_token(token, db)
     quiz = await quiz_operations.get_quiz_by_id(id, db)

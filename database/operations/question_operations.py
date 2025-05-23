@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, load_only
 
 from database.model.question_model import Question
+from database.model.quiz_model import Quiz
 from models.requests.question_request import QuestionRequest
 
 
@@ -30,4 +31,19 @@ async def update_question(id: int, question: QuestionRequest, db: AsyncSession):
 async def remove_question(id: int, db: AsyncSession):
     async with db as session:
         await session.execute(delete(Question).where(Question.id == id))
+        await session.commit()
+
+async def bulk_delete_question(user_id: int, id: list[int], db: AsyncSession):
+    async with db as session:
+        subquery = (
+            select(Question.id)
+            .join(Quiz)
+            .where(
+                Question.id.in_(id),
+                Quiz.user_id == user_id
+            )
+        )
+
+        stmt = delete(Question).where(Question.id.in_(subquery))
+        await session.execute(stmt)
         await session.commit()

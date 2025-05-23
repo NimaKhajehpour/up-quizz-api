@@ -40,6 +40,11 @@ async def update_question(id: int, question: QuestionRequest, db: Annotated[Asyn
         raise HTTPException(status_code=403, detail="You are not authorized")
     await question_operations.update_question(id, question, db)
 
+@router.delete("/bulk", status_code=204)
+async def bulk_delete_questions(ids: list[int], db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):
+    user = await decode_access_token(token, db)
+    await question_operations.bulk_delete_question(user.id, ids, db)
+
 @router.delete("/{id}", status_code=204)
 async def remove_question(id: int, db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):
     user = await decode_access_token(token, db)

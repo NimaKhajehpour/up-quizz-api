@@ -9,6 +9,7 @@ from database.dependencies import get_db
 from database.model.answer_model import Answer
 from database.model.question_model import Question
 from database.operations import question_operations, answer_operations, quiz_operations
+from models.requests import answer_request
 from models.requests.answer_request import AnswerRequest
 
 router = APIRouter(
@@ -29,6 +30,16 @@ async def create_answer(answer: AnswerRequest, db: Annotated[AsyncSession, Depen
         raise HTTPException(status_code=403, detail="You are not authorized")
     db_answer = Answer(**answer.model_dump())
     await answer_operations.create_answer(db_answer, db)
+
+@router.post("/bulk", status_code=204)
+async def bulk_add_answer(answers: list[answer_request.AnswerRequest], db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):
+    user = await decode_access_token(token, db)
+    await answer_operations.bulk_add_answers(user.id, answers, db)
+
+@router.delete("/bulk", status_code=204)
+async def bulk_delete_answers(ids: list[int], db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):
+    user = await decode_access_token(token, db)
+    await answer_operations.bulk_delete_answers(user.id, ids, db)
 
 @router.put("/{id}", status_code=204)
 async def update_answer(id: int, answer: AnswerRequest, db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)):

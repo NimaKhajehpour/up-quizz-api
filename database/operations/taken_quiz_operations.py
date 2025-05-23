@@ -16,7 +16,7 @@ async def get_taken_quizzes(id: int, db: AsyncSession):
     ))
     async with db as session:
         taken_quizzes = await session.execute(query)
-        return taken_quizzes.scalars().all()
+        return taken_quizzes.scalars().unique().all()
 
 async def create_taken_quiz(taken_quiz: TakenQuiz, db: AsyncSession):
     async with db as session:
